@@ -1,6 +1,6 @@
 {
   "name": "jarvis-desktop",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "JARVIS — assistente desktop pessoal com controle humano",
   "main": "dist/electron/main/index.js",
@@ -16,7 +16,7 @@
     "test:packaged": "node scripts/smoke-desktop.mjs",
     "setup:core": "node scripts/python.mjs -m pip install -r services/core/requirements.txt",
     "setup:voice": "node scripts/python.mjs -m pip install -r services/core/requirements-voice.txt",
-    "package:core": "node scripts/python.mjs -m PyInstaller packaging/core.spec --noconfirm",
+    "package:core": "node scripts/python.mjs -m PyInstaller packaging/core.spec --noconfirm --clean",
     "package:win": "npm run build && npm run package:core && electron-builder --win nsis --x64"
   },
   "dependencies": {
@@ -47,10 +47,27 @@
   "build": {
     "appId": "personal.jarvis.desktop",
     "productName": "JARVIS",
-    "directories": { "output": "release" },
-    "files": ["dist/electron/**/*", "dist/renderer/**/*", "package.json"],
-    "extraResources": [{ "from": "dist/jarvis-core", "to": "core" }],
-    "win": { "target": "nsis", "icon": "assets/icon.ico" },
-    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true }
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/electron/**/*",
+      "dist/renderer/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "dist/jarvis-core",
+        "to": "core"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }

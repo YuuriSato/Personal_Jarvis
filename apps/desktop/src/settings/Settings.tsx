@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { X, Shield, KeyRound, Server, Mic, Brain, FolderLock, Download, RefreshCw, Trash2, Check, Plus, ChevronRight } from 'lucide-react';
 import type { Action, JarvisSettings, Provider, ProviderId, Snapshot } from '../../../../contracts';
 import LMStudioStatus from './LMStudioStatus';
+import { version } from '../../../../package.json';
 
 interface Props { snapshot: Snapshot | null; action: (a: Action) => Promise<any>; refresh: () => Promise<void>; notify: (text: string) => void; close: () => void; }
 function localDateTime(value: string) {
@@ -32,6 +33,8 @@ export default function Settings({ snapshot, action, refresh, notify, close }: P
   const [editingMemory, setEditingMemory] = useState('');
   const [query, setQuery] = useState('');
   const [confirmClear, setConfirmClear] = useState(false);
+  const [cities, setCities] = useState<Array<{name: string; region: string; country: string; latitude: number; longitude: number}>>([]);
+  const [cityQuery, setCityQuery] = useState('');
   const settings = snapshot?.settings;
   const provider = snapshot?.providers.find(p => p.id === selected);
   const update = (values: Partial<JarvisSettings>) => action({ type: 'settings', settings: values });
@@ -63,11 +66,14 @@ export default function Settings({ snapshot, action, refresh, notify, close }: P
         {tab === 'security' && <>
           <div className="section-intro"><span className="eyebrow">HUMAN IN CONTROL</span><h3>Você define os limites.</h3><p>Permissões são aplicadas pelo aplicativo. Modelos e arquivos não podem conceder acesso.</p></div>
           <label className="setting-card"><div><strong>Somente local</strong><p>Bloqueia IAs remotas, clima e downloads de voz. Modelos Ollama em nuvem também são bloqueados.</p></div><input type="checkbox" checked={settings.local_only} onChange={e => update({ local_only: e.target.checked })} /></label>
-          <label>Modo de operação<select value={settings.mode} onChange={e => update({ mode: e.target.value as JarvisSettings['mode'] })}><option value="manual">Manual · modelo escolhido, sem troca silenciosa</option><option value="automatic">Automático · modelos habilitados, locais primeiro</option><option value="collaborative">Colaborativo · até 3 participantes, 2 rodadas</option></select></label>
+          <label>Modo de operação<select value={settings.mode} onChange={e => update({ mode: e.target.value as JarvisSettings['mode'] })}><option value="manual">Manual · modelo escolhido, sem troca silenciosa</option><option value="automatic">Automático · modelos habilitados, locais primeiro</option><option value="collaborative">Colaborativo · análise, revisão e síntese</option></select></label><p className="fine-print">Com um único modelo local disponível, a colaboração usa dois papéis no mesmo modelo e identifica isso no terminal. Com vários provedores elegíveis, distribui as análises entre eles.</p>
           <div className="form-grid"><label>Orçamento diário estimado · USD<input type="number" min="0.01" step="0.1" defaultValue={settings.daily_budget ?? ''} onBlur={e => update({ daily_budget: e.target.value ? Number(e.target.value) : null })} /></label><label>Limite de tokens por resposta<input type="number" min="128" max="8192" defaultValue={settings.max_output_tokens} onBlur={e => update({ max_output_tokens: Number(e.target.value) })} /></label></div>
           <p className="fine-print">O orçamento é estimado e contabilizado por dia UTC. Automação em nuvem exige orçamento, preços e data configurados. Uso interrompido sem medição é marcado como desconhecido.</p>
           <h4>Clima opcional · Open-Meteo</h4><label className="setting-card"><div><strong>Consultar clima</strong><p>Envia as coordenadas informadas à Open-Meteo a cada 15 minutos.</p></div><input type="checkbox" checked={settings.weather_enabled} onChange={e => update({ weather_enabled: e.target.checked })} /></label>
+          <label>Buscar cidade<div className="input-row"><input value={cityQuery} onChange={e => setCityQuery(e.target.value)} placeholder="Ex.: Osasco, SP"/><button disabled={!!pending || cityQuery.trim().length<2 || settings.local_only} onClick={() => run('cities', async () => { const result = await action({ type: 'weather_search', text: cityQuery }); setCities(result?.cities || []); })}>Buscar</button></div></label>
+          <div className="city-results">{cities.map(city => <button key={`${city.latitude},${city.longitude}`} onClick={async () => { await update({ city: `${city.name}, ${city.region}`, latitude: city.latitude, longitude: city.longitude, weather_enabled: true }); setCities([]); }}>{city.name} · {city.region} · {city.country}</button>)}</div>
           <label>Cidade<input defaultValue={settings.city} placeholder="Sua cidade" onBlur={e => update({ city: e.target.value })} /></label><div className="form-grid"><label>Latitude<input type="number" min="-90" max="90" step="any" defaultValue={settings.latitude ?? ''} onBlur={e => update({ latitude: e.target.value ? Number(e.target.value) : null })} /></label><label>Longitude<input type="number" min="-180" max="180" step="any" defaultValue={settings.longitude ?? ''} onBlur={e => update({ longitude: e.target.value ? Number(e.target.value) : null })} /></label></div>
+          <button className="secondary" disabled={!!pending || !settings.weather_enabled} onClick={() => run('weather', async () => { const result = await action({ type: 'weather_refresh' }); if (result) notify(result.status === 'connected' ? `${result.temperature}°C · ${result.description} · Open-Meteo` : 'Clima indisponível; confira cidade, coordenadas e rede.'); })}><RefreshCw size={14}/>Atualizar clima agora</button>
         </>}
         {tab === 'voice' && <>
           <div className="section-intro"><span className="eyebrow">VOICE & VISUAL CORE</span><h3>Uma presença responsiva.</h3><p>A expressão é simulada. O estado operacional e o áudio são reais.</p></div>
@@ -77,7 +83,12 @@ export default function Settings({ snapshot, action, refresh, notify, close }: P
           <label className="setting-card"><div><strong>Habilitar voz local</strong><p>Microfone somente ao usar o botão ou ativar a wake word. Sem gravação permanente.</p></div><input type="checkbox" checked={settings.voice_enabled} onChange={e => update({ voice_enabled: e.target.checked })} /></label>
           <div className="status-box"><Mic size={15} />{snapshot.voice.reason}</div>
           <button className="secondary" disabled={!!pending || !snapshot.voice.available || settings.local_only} onClick={() => run('voice', () => action({ type: 'voice_prepare' }))}><Download size={15} />{pending === 'voice' ? 'Preparando modelo…' : 'Baixar modelo local de transcrição'}</button><p className="fine-print">Download explícito do faster-whisper-base (Hugging Face). Depois de preparado, a transcrição roda localmente em CPU.</p>
-          <label className="setting-card"><div><strong>Responder com voz</strong><p>Utiliza a voz instalada no Windows. Pode ser interrompida.</p></div><input type="checkbox" checked={settings.auto_speak} disabled={!settings.voice_enabled} onChange={e => update({ auto_speak: e.target.checked })} /></label>
+          <label className="setting-card"><div><strong>Responder com voz</strong><p>Utiliza a voz local preparada no JARVIS ou instalada no Windows. Pode ser interrompida.</p></div><input type="checkbox" checked={settings.auto_speak} disabled={!settings.voice_enabled} onChange={e => update({ auto_speak: e.target.checked })} /></label>
+          <div className="status-box"><Mic size={15}/>{snapshot.voice.tts_name}{snapshot.voice.piper_ready ? ' · pronta para uso offline' : ''}</div>
+          <button className="secondary" disabled={!!pending || settings.local_only} onClick={() => run('tts', () => action({ type: 'voice_prepare_tts' }))}><Download size={14}/>{pending === 'tts' ? 'Preparando fala…' : snapshot.voice.piper_ready ? 'Verificar voz em português' : 'Preparar voz em português'}</button>
+          <button className="secondary" disabled={!!pending || !settings.voice_enabled} onClick={() => action({ type: 'voice_speak', text: 'Olá! Sou o Jarvis. A voz em português está pronta para ajudar.' })}><Mic size={14}/>Testar resposta falada</button>
+          <h4>Ativação local</h4><button className="secondary" disabled={!!pending || settings.local_only} onClick={() => run('wake-model', () => action({ type: 'voice_prepare_wake' }))}><Download size={14}/>{snapshot.voice.wake_model_ready ? 'Verificar modelo Hey Jarvis' : 'Preparar modelo Hey Jarvis'}</button>
+          <label>Sensibilidade da ativação<input type="range" min="0.3" max="0.95" step="0.05" value={settings.wake_threshold ?? .65} onChange={e => update({ wake_threshold: Number(e.target.value) })}/><small>Limiar: {(settings.wake_threshold ?? .65).toFixed(2)} · valores maiores reduzem ativações indevidas.</small></label>
           {!snapshot.voice.tts_portuguese && <div className="status-box">Nenhuma voz SAPI em português detectada. Instale uma voz em português nas configurações de fala do Windows para melhorar a pronúncia. Vozes atuais: {snapshot.voice.tts_voices.map(v => v.name).join(', ') || 'indisponíveis'}.</div>}
           <label className="setting-card"><div><strong>Wake word “Hey Jarvis”</strong><p>Mantém o microfone ativo e detecta localmente. A primeira ativação baixa o modelo openWakeWord, sujeito à licença de uso pessoal.</p></div><input type="checkbox" checked={settings.wake_word} disabled={!settings.voice_enabled || !snapshot.voice.wake_available || !!pending} onChange={e => run('wake', () => update({ wake_word: e.target.checked }))} /></label>
         </>}
@@ -102,7 +113,7 @@ export default function Settings({ snapshot, action, refresh, notify, close }: P
         </>}
         </>}
       </div></div>
-      <footer className="dialog-footer"><Shield size={12} />CREDENCIAIS NO COFRE DO SISTEMA<span>JARVIS v0.1.0</span></footer>
+      <footer className="dialog-footer"><Shield size={12} />CREDENCIAIS NO COFRE DO SISTEMA<span>JARVIS v{version}</span></footer>
     </section>
   </div>;
 }

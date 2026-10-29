@@ -9,6 +9,8 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 SPECS = [
+    {'name': 'weather', 'description': 'Consulta o clima real da cidade configurada, com fonte e horário da medição.',
+     'parameters': {'type': 'object', 'properties': {}, 'additionalProperties': False}},
     {'name': 'hardware', 'description': 'Consulta medições reais de CPU, RAM, GPU e disco.',
      'parameters': {'type': 'object', 'properties': {}, 'additionalProperties': False}},
     {'name': 'read_file', 'description': 'Lê um arquivo de texto em uma pasta concedida pelo usuário.',
@@ -99,6 +101,11 @@ class Tools:
 
     async def execute(self, tool, args, run_id=None):
         self.validate(tool, args)
+        if tool == 'weather':
+            await self.core.update_weather()
+            self.core.audit('tool.completed', {'tool': tool, 'status': self.core.weather.get('status')})
+            await self.core.bus.emit('tool.completed', {'tool': tool, 'result': self.core.weather}, run_id)
+            return self.core.weather
         if tool == 'hardware':
             self.core.audit('tool.completed', {'tool': tool, 'source': 'system'})
             await self.core.bus.emit('tool.completed', {'tool': tool, 'result': 'Telemetria consultada no sistema operacional.'}, run_id)

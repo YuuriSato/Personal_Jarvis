@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Activity, ArrowUpRight, AudioLines, Check, ChevronRight, Clock3, Cpu, Eye, EyeOff, HardDrive, Keyboard, Mic, MicOff, Radio, Send, Settings2, ShieldCheck, Square, Terminal, Volume2, X, Zap } from 'lucide-react';
 import ParticleCore from '../core-visual/ParticleCore';
+import EnvironmentPanel from './EnvironmentPanel';
+import { version } from '../../../../package.json';
 import Settings from '../settings/Settings';
 import Approvals from '../approvals/Approvals';
 import { useJarvis } from '../state/useJarvis';
@@ -15,7 +17,7 @@ const gib = (value: number | undefined) => value === undefined ? '—' : (value 
 
 export default function App() {
   const jarvis = useJarvis();
-  const { snapshot, connected, state, logs, stream, transmission, notice, setNotice, busy, action, refresh } = jarvis;
+  const { snapshot, connected, state, logs, stream, transmission, notice, setNotice, busy, action, refresh, playbackAmplitude } = jarvis;
   const [now, setNow] = useState(new Date());
   const [command, setCommand] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -67,13 +69,13 @@ export default function App() {
         <div className="metric-card"><div className="metric-title"><span>GPU LOAD</span><strong>{percent(telemetry?.gpu_percent)}</strong></div><div className="metric-track"><i style={{ width: `${telemetry?.gpu_percent ?? 0}%` }} /></div><div className="metric-meta"><span className="gpu-name">{telemetry?.gpu_name || 'SENSOR INDISPONÍVEL'}</span><b>{telemetry?.gpu_temperature == null ? '—' : `${telemetry.gpu_temperature}°C`}</b></div></div>
         <div className="disk-line"><HardDrive size={11} /><span>STORAGE FREE</span><b>{gib(telemetry?.disk_free)} GB</b></div><div className="panel-footnote">{stale ? 'DADOS INDISPONÍVEIS / DESATUALIZADOS' : 'SOURCE: PSUTIL + SENSORS'}<span>{telemetry ? new Date(telemetry.timestamp).toLocaleTimeString('pt-BR') : '—'}</span></div>
       </section>
-      <section className="hud-panel environment-panel"><PanelTitle title="ENV_TELEMETRY" badge="GLOBAL_NODE" /><div className="environment-card"><div><span>LOCATION</span><b>{snapshot?.settings.city || 'NÃO CONFIGURADA'}</b></div><div><span>WEATHER</span><b>{snapshot?.weather.status === 'connected' ? `${snapshot.weather.temperature}°C` : snapshot?.weather.status === 'blocked_local' ? 'LOCAL ONLY' : 'INDISPONÍVEL'}</b></div><div><span>CORE LINK</span><b className={connected ? 'cyan' : ''}>{connected ? 'CONNECTED / LOOPBACK' : 'OFFLINE'}</b></div></div><div className="panel-footnote">{snapshot?.weather.source || 'CLIMA OPCIONAL'}<span>{snapshot?.weather.timestamp ? new Date(snapshot.weather.timestamp).toLocaleTimeString('pt-BR') : 'NO GEOLOCATION'}</span></div></section>
-      <div className="left-signature"><div className="tiny-bars">▁▃▅▂▆▃▁▂▅▃▆▂▁</div><span>J.A.R.V.I.S. / v0.1.0</span></div>
+      <EnvironmentPanel snapshot={snapshot} connected={connected} />
+      <div className="left-signature"><div className="tiny-bars">▁▃▅▂▆▃▁▂▅▃▆▂▁</div><span>J.A.R.V.I.S. / v{version}</span></div>
     </aside>
 
     <main className="center-stage" aria-label="Núcleo do JARVIS">
       <section className={`transmission-panel ${displayState === 'error' ? 'has-error' : ''}`} aria-label="Última transmissão"><div className="transmission-label"><Radio size={11} />LATEST TRANSMISSION</div><p aria-live="polite">{transmission.length > 260 ? transmission.slice(0, 260) + '…' : transmission}</p><div className="transmission-corners" /></section>
-      <div className="core-area"><ParticleCore state={displayState} count={snapshot?.settings.quality || 8000} reduced={snapshot?.settings.reduced_motion || false} amplitude={voice.amplitude} /></div>
+      <div className="core-area"><ParticleCore state={displayState} count={snapshot?.settings.quality || 8000} reduced={snapshot?.settings.reduced_motion || false} amplitude={Math.max(voice.amplitude, playbackAmplitude)} /></div>
       <div className="voice-area"><div className="voice-orbit"><div className="voice-wave" style={{ transform: `scale(${1 + voice.amplitude * .4})` }} /><button className={`voice-button ${voice.recording ? 'recording' : ''}`} aria-label={voice.recording ? 'Encerrar gravação e enviar' : 'Iniciar comando de voz'} onClick={() => voice.recording ? void voice.stop() : void voice.start()} disabled={!connected || busy}>{voice.recording ? <Square size={21} /> : <Mic size={25} />}</button></div><div className="wake-status"><i className={`status-dot ${snapshot?.settings.voice_enabled ? '' : 'muted'}`} />{voice.recording ? 'OUVINDO · CLIQUE PARA ENVIAR' : voice.armed ? 'LISTENING FOR: “HEY JARVIS”' : 'VOICE STANDBY · CLIQUE PARA FALAR'}</div><span className="operational-state"><span className="state-line" />{labels[displayState]}<span className="state-line" /></span></div>
     </main>
 

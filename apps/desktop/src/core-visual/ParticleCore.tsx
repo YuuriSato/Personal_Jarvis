@@ -6,25 +6,27 @@ import type { RunState } from '../../../../contracts';
 const vertex = `
   attribute float seed;
   uniform float uTime; uniform float uEnergy; uniform float uAmplitude; uniform float uReduced;
-  varying float vAlpha; varying float vDepth;
+  varying float vAlpha; varying float vDepth; varying float vScan;
   void main() {
     vec3 p = position;
-    float motion = (1.0-uReduced) * (0.003 + uEnergy*0.009 + uAmplitude*0.035);
-    p += normal * sin(uTime*1.6+seed*40.0) * motion;
+    float motion = (1.0-uReduced) * (0.003 + uEnergy*0.018 + uAmplitude*0.035);
+    float ripple = sin(uTime*2.7 - position.y*6.0 + seed*3.0);
+    p += normal * (sin(uTime*1.6+seed*40.0) * motion + ripple*uEnergy*0.009*(1.0-uReduced));
     vec4 mv = modelViewMatrix * vec4(p, 1.0);
     gl_Position = projectionMatrix * mv;
-    gl_PointSize = (1.1+seed*1.5) * (3.0/-mv.z);
+    gl_PointSize = (1.1+seed*1.5+uEnergy*0.45) * (3.0/-mv.z);
     vAlpha = 0.42 + seed*0.5 + sin(seed*100.0+uTime)*0.08;
     vDepth = p.z;
+    vScan = exp(-pow((position.y - sin(uTime*1.1)*1.05)*7.0,2.0))*uEnergy*(1.0-uReduced);
   }
 `;
 const fragment = `
-  uniform vec3 uColor; varying float vAlpha; varying float vDepth;
+  uniform vec3 uColor; varying float vAlpha; varying float vDepth; varying float vScan;
   void main() {
     float d=length(gl_PointCoord-vec2(0.5));
     if(d>0.5) discard;
     float a = smoothstep(0.5,0.08,d) * vAlpha;
-    gl_FragColor=vec4(uColor*(0.7+vDepth*0.5), a);
+    gl_FragColor=vec4(mix(uColor,vec3(0.7,1.0,1.0),vScan*0.65)*(0.7+vDepth*0.5+vScan*0.45), min(1.0,a+vScan*0.15));
   }
 `;
 
@@ -74,11 +76,13 @@ function Face({ state, count, reduced, amplitude, onQuality }: { state: RunState
     f.elapsed += Math.min(delta, .05);
     material.uniforms.uTime.value = reduced ? 0 : f.elapsed;
     material.uniforms.uAmplitude.value = amplitude;
-    material.uniforms.uEnergy.value = ['processing', 'executing'].includes(state) ? 1 : .15;
+    const targetEnergy = ['processing', 'executing'].includes(state) ? 1 : state === 'speaking' ? .4 : .1;
+    material.uniforms.uEnergy.value = THREE.MathUtils.damp(material.uniforms.uEnergy.value, targetEnergy, 3.5, delta);
     material.uniforms.uReduced.value = reduced ? 1 : 0;
     material.uniforms.uColor.value.set(state === 'error' ? '#ff6870' : state === 'awaiting_approval' ? '#efbc61' : '#65cfff');
     points.current.rotation.y = .96 + (reduced ? 0 : Math.sin(f.elapsed * .12) * .1);
     points.current.rotation.x = -.03;
+    points.current.scale.setScalar(1 + (reduced ? 0 : Math.sin(f.elapsed * 2.2) * .012 * material.uniforms.uEnergy.value));
     f.samples++; f.time += delta;
     if (f.samples === 180 && f.time > 7 && count > 4000) { geometry.setDrawRange(0, 4000); onQuality(4000); }
   });
@@ -96,25 +100,44 @@ function FlatFace() {
 
 export default function ParticleCore({ state, count = 8000, reduced = false, amplitude = 0 }: { state: RunState; count?: number; reduced?: boolean; amplitude?: number }) {
   const [actual, setActual] = useState(count);
+  const [systemReduced, setSystemReduced] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const change = () => setSystemReduced(query.matches);
+    query.addEventListener('change', change);
+    return () => query.removeEventListener('change', change);
+  }, []);
+  const quiet = reduced || systemReduced;
   useEffect(() => setActual(count), [count]);
-  return <div className={`visual-core core-${state} ${reduced ? 'reduced' : ''}`}>
+  return <div className={`visual-core core-${state} ${quiet ? 'reduced' : ''}`}>
     <div className="core-halo" />
     <svg className="core-rings" viewBox="0 0 600 600" aria-hidden="true">
+      <defs>
+        <linearGradient id="core-sweep" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stopColor="#05718c" stopOpacity="0"/><stop offset="65%" stopColor="#12bddc" stopOpacity=".5"/><stop offset="100%" stopColor="#a4f7ff"/></linearGradient>
+        <filter id="core-glow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+      <circle className="ring-track" cx="300" cy="300" r="267" />
       <circle className="ring-a" cx="300" cy="300" r="267" />
       <circle className="ring-b" cx="300" cy="300" r="247" />
       <circle className="ring-c" cx="300" cy="300" r="279" />
+      <circle className="ring-processing" cx="300" cy="300" r="229" />
+      <g className="ring-ticks">{Array.from({ length: 60 }, (_, i) => {
+        const a = i * Math.PI / 30, r = i % 5 === 0 ? 294 : 291;
+        return <line key={i} x1={300 + Math.sin(a)*r} y1={300 + Math.cos(a)*r} x2={300 + Math.sin(a)*287} y2={300 + Math.cos(a)*287} opacity={i%5===0 ? .8 : .22} />;
+      })}</g>
       <path d="M300 12v15M300 573v15M12 300h15M573 300h15" />
       <path className="crosshair" d="M280 300h40M300 280v40" />
     </svg>
     <div className="face-canvas">
       <VisualBoundary fallback={<FlatFace />}>
         <Suspense fallback={<FlatFace />}>
-          <Canvas camera={{ position: [0, 0, 3.8], fov: 42 }} frameloop={reduced ? 'demand' : 'always'} dpr={[1, 1.5]} gl={{ alpha: true, antialias: false, powerPreference: 'low-power' }} fallback={<FlatFace />}>
-            <Face state={state} count={count} reduced={reduced} amplitude={amplitude} onQuality={setActual} />
+          <Canvas camera={{ position: [0, 0, 3.8], fov: 42 }} frameloop={quiet ? 'demand' : 'always'} dpr={[1, 1.5]} gl={{ alpha: true, antialias: false, powerPreference: 'low-power' }} fallback={<FlatFace />}>
+            <Face state={state} count={count} reduced={quiet} amplitude={amplitude} onQuality={setActual} />
           </Canvas>
         </Suspense>
       </VisualBoundary>
     </div>
+    {['processing', 'executing'].includes(state) && <div className="core-thinking-tag"><i/><span>{state === 'processing' ? 'ANALISANDO' : 'EXECUTANDO'}</span><i/></div>}
     <span className="core-caption">VISUAL CORE <span>·</span> {(actual / 1000).toFixed(0).padStart(2, '0')}K PARTICLES <span>·</span> EXPRESSÃO SIMULADA</span>
   </div>;
 }

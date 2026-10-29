@@ -58,20 +58,27 @@ export function useVoice(action: (a: Action) => Promise<any>, enabled: boolean, 
         } else {
           current.wakeBuffer.push(...pcm);
           if (current.wakeBuffer.length >= 1280 && !current.sending) {
-            const frame = current.wakeBuffer.splice(0, 1280); current.sending = true;
-            actionRef.current({ type: 'wake_audio', audio: frame }).then(result => {
-              if (result?.detected && session.current === current) {
-                current.capturing = true; current.audio = []; setRecording(true);
-                current.timer = setTimeout(() => void stop(), 8000);
-              }
-            }).finally(() => { current.sending = false; });
+            current.sending = true;
+            void (async () => {
+              try {
+                while (session.current === current && !current.capturing && current.wakeBuffer.length >= 1280) {
+                  const frame = current.wakeBuffer.splice(0, 1280);
+                  const result = await actionRef.current({ type: 'wake_audio', audio: frame });
+                  if (!result) { cleanup(); break; }
+                  if (result.detected && session.current === current) {
+                    current.capturing = true; current.audio = []; setRecording(true);
+                    current.timer = setTimeout(() => void stop(), 8000);
+                  }
+                }
+              } finally { current.sending = false; }
+            })();
           }
           if (current.wakeBuffer.length > 16000) current.wakeBuffer.splice(0, current.wakeBuffer.length - 1280);
         }
       };
       source.connect(processor); processor.connect(context.destination);
       await context.resume(); setRecording(!wake); setArmed(wake);
-    } catch { cleanup(); setNotice('Não foi possível acessar o microfone. Verifique a permissão do Windows.'); }
+    } catch (error) { cleanup(); setNotice((error as DOMException).name === 'NotFoundError' ? 'Nenhum microfone está disponível nesta sessão do Windows.' : 'Não foi possível acessar o microfone. Verifique o dispositivo e sua permissão no Windows.'); }
     finally { starting.current = false; }
   }, [enabled, suspended, setNotice, stop, cleanup]);
   useEffect(() => { paused.current = false; }, [wakeWord]);

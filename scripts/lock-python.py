@@ -7,7 +7,7 @@ from packaging.utils import canonicalize_name
 root = Path(__file__).resolve().parents[1] / 'services/core'
 groups = {
     'core': ['fastapi', 'uvicorn', 'wsproto', 'httpx', 'psutil', 'pydantic', 'nvidia-ml-py', 'pytest', 'pytest-asyncio', 'pyinstaller'],
-    'voice': ['faster-whisper', 'pyttsx3', 'openwakeword'],
+    'voice': ['faster-whisper', 'pyttsx3', 'openwakeword', 'piper-tts', 'sounddevice'],
 }
 for group, names in groups.items():
     found = {}

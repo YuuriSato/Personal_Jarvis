@@ -20,6 +20,7 @@ class Settings(BaseModel):
     voice_enabled: bool = False
     auto_speak: bool = False
     wake_word: bool = False
+    wake_threshold: float = Field(default=.65, ge=.3, le=.95)
     semantic_memory_enabled: bool = False
     embedding_provider: Literal['lmstudio', 'ollama'] = 'lmstudio'
     embedding_model: str = Field(default='', max_length=200, pattern=r'^[a-zA-Z0-9_./:@+\-]*$')

@@ -14,7 +14,7 @@ let quitting = false;
 const chosenFolders = new Set<string>();
 const chosenApps = new Set<string>();
 const providerSchema = z.enum(['openai', 'gemini', 'claude', 'lmstudio', 'ollama']);
-const permittedActions = new Set(['snapshot', 'message', 'cancel', 'settings', 'provider', 'models', 'lmstudio_load', 'approve', 'tool', 'memory', 'memory_delete', 'memory_index', 'memory_search', 'history_clear', 'voice_prepare', 'voice_transcribe', 'voice_speak', 'voice_stop', 'wake_audio']);
+const permittedActions = new Set(['snapshot', 'message', 'cancel', 'settings', 'provider', 'models', 'lmstudio_load', 'approve', 'tool', 'memory', 'memory_delete', 'memory_index', 'memory_search', 'history_clear', 'voice_prepare', 'voice_prepare_tts', 'voice_prepare_wake', 'weather_search', 'weather_refresh', 'voice_transcribe', 'voice_speak', 'voice_stop', 'wake_audio']);
 
 function checkSender(event: Electron.IpcMainInvokeEvent) {
   if (!window || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame) throw new Error('Remetente não autorizado.');

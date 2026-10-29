@@ -1,6 +1,27 @@
 """Parent sends bootstrap/secrets through stdin, never process arguments or environment."""
-import json
 import multiprocessing
+
+# Frozen workers must enter spawn_main before importing the service and its runtime.
+# This also prevents application startup from consuming the parent's bootstrap pipe.
+if __name__ == '__main__':
+    multiprocessing.freeze_support()
+
+import json
+import sys
+
+if __name__ == '__main__' and sys.argv[1:] == ['--voice-worker']:
+    from services.core.voice.worker_process import main as voice_worker_main
+    voice_worker_main()
+    raise SystemExit(0)
+
+# On Windows, BLAS DLL initialization can acquire CRT stream locks. Load the
+# optional detector before the stdin control thread starts its blocking read.
+# This loads code only: it does not load models, download assets or open audio.
+try:
+    import openwakeword
+except ImportError:
+    pass
+
 import os
 import socket
 import sys
@@ -42,5 +63,4 @@ def main():
 
 
 if __name__ == '__main__':
-    multiprocessing.freeze_support()
     main()

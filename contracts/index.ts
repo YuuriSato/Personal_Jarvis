@@ -11,6 +11,7 @@ export interface JarvisSettings {
   provider: ProviderId; daily_budget: number | null; max_output_tokens: number;
   personality: 'objective' | 'cordial' | 'witty' | 'supportive';
   voice_enabled: boolean; auto_speak: boolean; wake_word: boolean;
+  wake_threshold: number;
   semantic_memory_enabled: boolean; embedding_provider: 'lmstudio' | 'ollama'; embedding_model: string;
   quality: 4000 | 8000 | 16000; reduced_motion: boolean;
   weather_enabled: boolean; city: string; latitude: number | null; longitude: number | null;
@@ -32,7 +33,7 @@ export interface Snapshot {
   session_id: string; settings: JarvisSettings; providers: Provider[]; telemetry: Telemetry | null;
   messages: Message[]; runs: Run[]; approvals: Approval[]; memories: Memory[];
   usage: { input_tokens: number; output_tokens: number; estimated_cost: number; unpriced: number };
-  voice: { available: boolean; model_ready: boolean; wake_available: boolean; reason: string; tts_voices: { name: string; portuguese: boolean }[]; tts_portuguese: boolean };
+  voice: { available: boolean; model_ready: boolean; wake_available: boolean; wake_model_ready: boolean; reason: string; tts_voices: { name: string; portuguese: boolean }[]; tts_portuguese: boolean; piper_ready: boolean; tts_engine: string; tts_name: string };
   weather: { status: string; temperature?: number; description?: string; timestamp?: string; source?: string };
 }
 export type Action =
@@ -52,6 +53,9 @@ export type Action =
   | { type: 'history_clear' }
   | { type: 'export' }
   | { type: 'voice_prepare' }
+  | { type: 'voice_prepare_tts' | 'voice_prepare_wake' }
+  | { type: 'weather_search'; text: string }
+  | { type: 'weather_refresh' }
   | { type: 'voice_transcribe'; audio: number[]; sample_rate: number }
   | { type: 'voice_speak'; text: string }
   | { type: 'voice_stop' }

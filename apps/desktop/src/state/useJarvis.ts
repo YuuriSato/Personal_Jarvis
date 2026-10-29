@@ -23,6 +23,7 @@ export function useJarvis() {
   const [transmission, setTransmission] = useState('Aguardando conexão com o JARVIS Core.');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
+  const [playbackAmplitude, setPlaybackAmplitude] = useState(0);
   const sequence = useRef(new Map<string, number>());
   const refresh = useCallback(async () => {
     if (!window.jarvis) return;
@@ -42,7 +43,7 @@ export function useJarvis() {
     if (!window.jarvis) { setNotice('Esta é uma prévia da interface. Abra o aplicativo desktop para usar o Core.'); return; }
     try {
       const result = await window.jarvis.action(value);
-      if (['settings', 'provider', 'memory', 'memory_delete', 'history_clear', 'models', 'lmstudio_load', 'voice_prepare', 'approve'].includes(value.type)) await refresh();
+      if (['settings', 'provider', 'memory', 'memory_delete', 'history_clear', 'models', 'lmstudio_load', 'voice_prepare', 'voice_prepare_tts', 'voice_prepare_wake', 'weather_refresh', 'approve'].includes(value.type)) await refresh();
       return result;
     } catch (error) { setNotice((error as Error).message.replace(/^Error invoking remote method '[^']+': Error: /, '')); }
   }, [refresh]);
@@ -65,7 +66,7 @@ export function useJarvis() {
         case 'usage.updated': setSnapshot(data => data ? { ...data, usage: payload as any } : data); break;
         case 'run.started': setBusy(true); setState('processing'); setStream(''); setTransmission('Processando solicitação…'); break;
         case 'run.stage_changed': setState(payload.state); break;
-        case 'run.collaborator': append('system', `Colaboração: ${payload.provider} está preparando uma análise.`); break;
+        case 'run.collaborator': append('system', `Colaboração: ${payload.provider}${payload.model ? ' / ' + payload.model : ''} · ${payload.role || 'analista'}${payload.distinct_models === 1 ? ' (papéis no mesmo modelo local)' : ''}.`); break;
         case 'memory.search_failed': append('system', payload.message); break;
         case 'message.delta': setStream(payload.content); setTransmission(payload.content); break;
         case 'message.completed':
@@ -80,11 +81,13 @@ export function useJarvis() {
         case 'tool.started': append('tool', `Iniciando ${payload.tool}.`); break;
         case 'tool.completed': append('tool', `${payload.tool} concluído e verificado.`); refresh(); break;
         case 'tool.failed': append('error', payload.error); refresh(); break;
-        case 'voice.state_changed': setState(payload.state); break;
+        case 'voice.state_changed': setState(payload.state); if (payload.state === 'idle') setPlaybackAmplitude(0); break;
+        case 'voice.amplitude': setPlaybackAmplitude(payload.value); break;
+        case 'voice.failed': setNotice(payload.message); setPlaybackAmplitude(0); break;
       }
     });
     return () => { clearInterval(timer); unsubscribe(); };
   }, [refresh]);
   useEffect(() => { if (!notice) return; const timer = setTimeout(() => setNotice(''), 8000); return () => clearTimeout(timer); }, [notice]);
-  return { snapshot, connected, state, setState, logs, stream, transmission, notice, setNotice, busy, action, refresh };
+  return { snapshot, connected, state, setState, logs, stream, transmission, notice, setNotice, busy, action, refresh, playbackAmplitude };
 }

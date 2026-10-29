@@ -2,7 +2,7 @@
 
 Assistente desktop pessoal para Windows: HUD em React/Three.js, serviço Python local, cinco adaptadores de IA, memória SQLite, voz local e ferramentas com autorização humana.
 
-V1 identifica esta primeira entrega do projeto; a versão interna do aplicativo é `0.1.0`. Recursos que ainda precisam de validação real estão registrados em `docs/VALIDATION.md`.
+V1 identifica esta primeira entrega do projeto; a versão interna atual é `0.2.0`. Resultados e limites dos testes reais estão registrados em `docs/VALIDATION.md`.
 
 ![Referência visual do HUD](assets/reference/hud-original.png)
 
@@ -40,7 +40,10 @@ npm run dev
 4. Em Privacidade, configure modo manual/automático/colaborativo. O modo somente local bloqueia IAs remotas, clima e downloads de voz.
 5. Configure orçamento e preços por milhão de tokens antes da automação em nuvem. Preços são informados pelo usuário; custos são estimativas, não a fatura. Uso interrompido sem medição fica desconhecido.
 6. Em Ferramentas, conceda pastas e aplicativos pelo seletor nativo. Cada ação sensível exige aprovação própria, com validade de cinco minutos.
-7. Em Voz e núcleo, habilite voz e baixe explicitamente o modelo de transcrição. A transcrição funciona em CPU, sem gravar o áudio em disco. A wake word requer download separado e mantém o microfone ativo enquanto habilitada.
+7. Em Voz e núcleo, habilite voz e prepare explicitamente a transcrição, a voz local em português (Piper) e, se desejado, a wake word. A transcrição funciona em CPU, sem gravar o áudio em disco. A wake word mantém o microfone ativo enquanto habilitada; a voz falada pode ser interrompida. Consulte as licenças em [componentes de voz](docs/THIRD_PARTY_VOICE.md).
+8. Em Memória e clima, selecione o modelo local de embeddings, indexe memórias consentidas e pesquise sua cidade para habilitar clima real. Clima e downloads precisam de rede; o modo somente local também bloqueia essas consultas.
+
+No modo colaborativo com um único modelo disponível, o aplicativo apresenta dois papéis no mesmo modelo e uma síntese. Isso não equivale à validação por modelos independentes.
 
 Atalhos: `Ctrl+K` foca o comando; `Esc`/TERMINATE interrompe atividade e pausa a captura de áudio, inclusive wake word, até nova ativação pelo usuário. O botão de microfone inicia a captura e um segundo clique envia para transcrição (máximo de 30 segundos).
 

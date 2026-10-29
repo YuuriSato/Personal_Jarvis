@@ -15,9 +15,9 @@ class MemoryIndex:
     def fingerprint(self, text):
         s = self.core.settings
         provider = self.core.providers.configs[s.embedding_provider]
-        return hashlib.sha256(json.dumps([provider.base_url, s.embedding_provider, s.embedding_model, text]).encode()).hexdigest()
+        return hashlib.sha256(json.dumps(['embedding-v2', provider.base_url, s.embedding_provider, s.embedding_model, text]).encode()).hexdigest()
 
-    async def embed(self, texts):
+    async def embed(self, texts, purpose='document'):
         s = self.core.settings
         p = self.core.providers.gate(s.embedding_provider, True)
         if not s.embedding_model:
@@ -31,6 +31,9 @@ class MemoryIndex:
             if selected and selected.get('kind') == 'llm':
                 raise ValueError('Selecione um modelo de embeddings, não um modelo de conversa.')
         endpoint = '/embed' if p.id == 'ollama' else '/embeddings'
+        if 'nomic' in s.embedding_model.lower():
+            prefix = 'search_query: ' if purpose == 'query' else 'search_document: '
+            texts = [prefix + text for text in texts]
         async with self.core.providers.client(p.id) as client:
             response = await client.post(p.base_url + endpoint, json={'model': s.embedding_model, 'input': texts})
             response.raise_for_status()
@@ -71,7 +74,7 @@ class MemoryIndex:
                     candidates.append((memory, json.loads(row['vector'])))
         if not candidates:
             return memories[:20]
-        query_vector = (await self.embed([query]))[0]
+        query_vector = (await self.embed([query], purpose='query'))[0]
         norm_query = math.sqrt(sum(v*v for v in query_vector)) or 1
         scored = []
         for memory, vector in candidates:
