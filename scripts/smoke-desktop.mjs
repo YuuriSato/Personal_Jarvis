@@ -7,7 +7,8 @@ import assert from 'node:assert/strict';
 const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'jarvis-packaged-'));
 const data = path.join(temporary, 'data'), files = path.join(temporary, 'files');
 await fs.mkdir(files);
-const app = await _electron.launch({ executablePath: path.resolve('release/win-unpacked/JARVIS.exe'),
+const { version } = JSON.parse(await fs.readFile(new URL('../package.json', import.meta.url), 'utf8'));
+const app = await _electron.launch({ executablePath: path.resolve(`release/JARVIS-v${version}/win-unpacked/JARVIS.exe`),
   env: { ...process.env, PATH: path.join(process.env.SystemRoot || 'C:/Windows', 'System32'), JARVIS_TEST_MODE: '1', JARVIS_TEST_DATA: data },
   timeout: 60000,
 });

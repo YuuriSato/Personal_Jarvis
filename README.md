@@ -73,7 +73,9 @@ Os testes de provedores usam transporte controlado; nenhum deles consome APIs pa
 npm run package:win
 ```
 
-O instalador é gerado em `release/`. O Core empacotado inclui Python e as bibliotecas disponíveis na `.venv`; modelos de transcrição/wake word continuam sendo baixados somente por ação do usuário. O instalador pessoal não possui assinatura comercial.
+Cada versão tem sua pasta: `release/JARVIS-v0.2.0/`, por exemplo. O empacotador usa automaticamente a versão do `package.json` e reúne instalador, logos, documentação e checksum SHA-256; novas versões não devem misturar seus arquivos com versões anteriores. Nas entregas em `outputs/`, manter o mesmo padrão `JARVIS-v<versão>/`, reunindo instalador, logo, capturas e documentação da versão.
+
+O Core empacotado inclui Python e as bibliotecas disponíveis na `.venv`; modelos de transcrição/wake word continuam sendo baixados somente por ação do usuário. O instalador pessoal não possui assinatura comercial.
 
 `npm run test:packaged` verifica o aplicativo empacotado, com PATH limitado ao sistema Windows, incluindo cofre, telemetria e aprovação de criação de arquivo em pasta temporária.
 

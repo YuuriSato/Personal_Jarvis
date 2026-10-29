@@ -17,7 +17,7 @@
     "setup:core": "node scripts/python.mjs -m pip install -r services/core/requirements.txt",
     "setup:voice": "node scripts/python.mjs -m pip install -r services/core/requirements-voice.txt",
     "package:core": "node scripts/python.mjs -m PyInstaller packaging/core.spec --noconfirm --clean",
-    "package:win": "npm run build && npm run package:core && electron-builder --win nsis --x64"
+    "package:win": "npm run build && npm run package:core && electron-builder --win nsis --x64 && node scripts/finalize-release.mjs"
   },
   "dependencies": {
     "@react-three/fiber": "^9.0.0",
@@ -48,7 +48,7 @@
     "appId": "personal.jarvis.desktop",
     "productName": "JARVIS",
     "directories": {
-      "output": "release"
+      "output": "release/JARVIS-v${version}"
     },
     "files": [
       "dist/electron/**/*",
