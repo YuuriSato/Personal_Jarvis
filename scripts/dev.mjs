@@ -1,0 +1,12 @@
+import { spawn } from 'node:child_process';
+import { createServer } from 'vite';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const tsc = spawn(process.execPath, ['node_modules/typescript/bin/tsc', '-p', 'apps/desktop/electron/tsconfig.json'], { stdio: 'inherit', windowsHide: true });
+const code = await new Promise(resolve => tsc.once('exit', resolve));
+if (code) process.exit(Number(code));
+const vite = await createServer();
+await vite.listen();
+const electron = spawn(require('electron'), ['.'], { stdio: 'inherit', windowsHide: true });
+electron.once('exit', async code => { await vite.close(); process.exit(code ?? 0); });
+process.on('SIGINT', () => electron.kill());

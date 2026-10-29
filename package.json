@@ -1,0 +1,56 @@
+{
+  "name": "jarvis-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "JARVIS — assistente desktop pessoal com controle humano",
+  "main": "dist/electron/main/index.js",
+  "type": "module",
+  "author": "JARVIS Personal",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "tsc --noEmit && tsc -p apps/desktop/electron/tsconfig.json && vite build",
+    "start": "node scripts/dev.mjs",
+    "preview": "vite --host 127.0.0.1",
+    "test": "playwright test",
+    "test:core": "node scripts/python.mjs -m pytest tests -q",
+    "test:packaged": "node scripts/smoke-desktop.mjs",
+    "setup:core": "node scripts/python.mjs -m pip install -r services/core/requirements.txt",
+    "setup:voice": "node scripts/python.mjs -m pip install -r services/core/requirements-voice.txt",
+    "package:core": "node scripts/python.mjs -m PyInstaller packaging/core.spec --noconfirm",
+    "package:win": "npm run build && npm run package:core && electron-builder --win nsis --x64"
+  },
+  "dependencies": {
+    "@react-three/fiber": "^9.0.0",
+    "framer-motion": "^12.0.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "three": "^0.180.0",
+    "ws": "^8.18.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "@tailwindcss/vite": "^4.1.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/three": "^0.180.0",
+    "@types/ws": "^8.18.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "electron": "45.1.0",
+    "electron-builder": "^26.0.0",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.9.0",
+    "vite": "^7.0.0"
+  },
+  "build": {
+    "appId": "personal.jarvis.desktop",
+    "productName": "JARVIS",
+    "directories": { "output": "release" },
+    "files": ["dist/electron/**/*", "dist/renderer/**/*", "package.json"],
+    "extraResources": [{ "from": "dist/jarvis-core", "to": "core" }],
+    "win": { "target": "nsis", "icon": "assets/icon.ico" },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true }
+  }
+}
